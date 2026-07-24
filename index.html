@@ -55,8 +55,13 @@
 
   .qline{margin:14px 0 6px;font-size:15px;font-weight:700}
   .qline .who{color:var(--blue)}
-  .standings{font-size:12.5px;color:var(--sub);margin:2px 0 4px}
-  .standings b{color:var(--ink)}
+  .stand{border:1px dashed var(--line);border-radius:10px;margin:6px 0 2px;overflow:hidden;background:#fbfdfb}
+  .stand-head{display:flex;align-items:center;gap:8px;padding:8px 11px;cursor:pointer;user-select:none;font-size:12.5px;font-weight:700;color:var(--green-d)}
+  .stand-head .peek{margin-left:auto;font-size:11.5px;color:var(--sub);font-weight:700}
+  .stand-body{display:none;padding:0 11px 10px;font-size:12.5px;color:var(--sub)}
+  .stand-body b{color:var(--ink)}
+  .stand.open .stand-body{display:block}
+  .stand.open .stand-head .peek{display:none}
 
   .patterns{display:flex;flex-direction:column;gap:9px;margin-top:10px}
   .pat{border:1px solid var(--line);border-radius:11px;overflow:hidden}
@@ -184,7 +189,7 @@ function enumerateHands(isDealer,isTsumo,kiriage){
     } else { total=isDealer?ceil100(6*base):ceil100(4*base); }
     list.push({label:name||`${han}翻${fu}符`,han,fu,base,total,fromDealer,fromChild});
   };
-  const fuByHan={1:[30,40,50,60,70],2:[20,25,30,40,50,60,70],3:[20,25,30,40,50,60,70],4:[20,25,30,40,50,60,70]};
+  const fuByHan={1:[30,40,50],2:[20,25,30,40,50],3:[20,25,30,40,50],4:[20,25,30,40,50]};
   const seen=new Set();
   for(let han=1;han<=4;han++) for(const fu of fuByHan[han]){
     if(fu===20&&(!isTsumo||han<2)) continue;
@@ -469,7 +474,12 @@ function render(){
       </tbody>
     </table>
     <div class="qline">Q. <span class="who">${tName}</span> が2着抜け（上位2名通過）するための和了条件は？${honbaTxt}${kyoTxt}</div>
-    <div class="standings">現在のトータル順位（この持ち点のまま終局した場合）：${standTxt}</div>
+    <div class="stand ${revealed?'open':''}">
+      <div class="stand-head" onclick="this.parentElement.classList.toggle('open')">
+        現在のトータル順位（タップで表示）<span class="peek">▾</span>
+      </div>
+      <div class="stand-body">この持ち点のまま終局した場合：${standTxt}</div>
+    </div>
     <div class="patterns">${pats}</div>
     <details class="help">
       <summary>解き方・ルールの補足</summary>
