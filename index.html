@@ -127,7 +127,7 @@
 
   <div class="card" id="problem"><!-- rendered --></div>
 
-  <footer>順位点はオカ込み（1位+50=ウマ+30＋オカ+20）。同点は起家に近い順で上位。条件は「最終局・和了で上位2名以内に入る最低条件」を全和了点から探索して算出しています。</footer>
+  <footer>順位点はオカ込み（1位+50=ウマ+30＋オカ+20）。素点が同点なら順位点は折半。合計ポイントが同点なら最終半荘前ポイントが上の人が勝ち抜け。条件は「最終局・和了で上位2名以内に入る最低条件」を全和了点から探索して算出しています。</footer>
 </div>
 
 <script>
@@ -137,23 +137,35 @@
 const RETURN_POINTS = 30000;
 const RANK_BONUS = [50, 10, -10, -30];
 
+const EPS=1e-6;
 function computeStandings(players, scores){
-  const byScore=[0,1,2,3].sort((a,b)=> scores[b]!==scores[a]? scores[b]-scores[a] : players[a].seat-players[b].seat);
-  const hanchanRank=[0,0,0,0]; byScore.forEach((pi,r)=>hanchanRank[pi]=r);
-  const totalTenths=[0,0,0,0];
-  for(let i=0;i<4;i++){
-    const preT=Math.round(players[i].pre*10);
-    const rawT=(scores[i]-RETURN_POINTS)/100;
-    const bonusT=RANK_BONUS[hanchanRank[i]]*10;
-    totalTenths[i]=preT+rawT+bonusT;
+  // 素点降順に並べ、同点はグループ化して順位点を折半（等分）
+  const idx=[0,1,2,3].sort((a,b)=> scores[b]!==scores[a]? scores[b]-scores[a] : players[a].seat-players[b].seat);
+  const bonusT=[0,0,0,0];
+  let i=0;
+  while(i<4){
+    let j=i; while(j<4 && scores[idx[j]]===scores[idx[i]]) j++;
+    let sum=0; for(let p=i;p<j;p++) sum+=RANK_BONUS[p];
+    const avgT=(sum/(j-i))*10;
+    for(let p=i;p<j;p++) bonusT[idx[p]]=avgT;
+    i=j;
   }
+  const hanchanRank=[0,0,0,0]; idx.forEach((pi,r)=>hanchanRank[pi]=r);
+  const totalTenths=[0,0,0,0];
+  for(let k=0;k<4;k++){
+    const preT=Math.round(players[k].pre*10);
+    const rawT=(scores[k]-RETURN_POINTS)/100;
+    totalTenths[k]=preT+rawT+bonusT[k];
+  }
+  // 総合順位：合計pt降順 → 同点なら最終半荘前ポイントが上の方が上位
   const order=[0,1,2,3].sort((a,b)=>{
-    if(totalTenths[b]!==totalTenths[a]) return totalTenths[b]-totalTenths[a];
+    if(Math.abs(totalTenths[b]-totalTenths[a])>EPS) return totalTenths[b]-totalTenths[a];
+    if(Math.abs(players[b].pre-players[a].pre)>EPS) return players[b].pre-players[a].pre;
     if(scores[b]!==scores[a]) return scores[b]-scores[a];
     return players[a].seat-players[b].seat;
   });
   const overallRank=[0,0,0,0]; order.forEach((pi,r)=>overallRank[pi]=r);
-  return {order,totalTenths,hanchanRank,overallRank};
+  return {order,totalTenths,hanchanRank,overallRank,bonusT};
 }
 
 const LIMIT_HANDS=[
@@ -461,7 +473,8 @@ function render(){
       <summary>解き方・ルールの補足</summary>
       <div>
         各家のトータル＝〔最終半荘前ポイント〕＋〔(素点−30000)÷1000〕＋〔順位点〕。順位点は 1位+50 / 2位+10 / 3位−10 / 4位−30（オカ込み）。<br>
-        「◯◯点以上」は、その和了で ${tName} が上位2名に入る<b>最低点</b>です。直撃(ロン)は相手の点も減るため、ツモや別の相手より軽い条件になりがちです。同点は起家に近い家が上位。
+        「◯◯点以上」は、その和了で ${tName} が上位2名に入る<b>最低点</b>です。直撃(ロン)は相手の点も減るため、ツモや別の相手より軽い条件になりがちです。<br>
+        素点が同点なら順位点は<b>折半</b>（例：1位2位が同点なら両者(+50+10)÷2=+30）。合計ポイントが同点なら<b>最終半荘前ポイントが上の人</b>が勝ち抜けます。
       </div>
     </details>
   `;
