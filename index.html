@@ -373,6 +373,7 @@ function generate(diff){
     for(let t=0;t<8000;t++){
       const sc=buildRandom();
       sc.targetIndex=computeStandings(sc.players,sc.scores).order[2]; // 現在3着
+      if(sc.players[sc.targetIndex].seat===sc.dealerSeat) continue;   // 親は対象にしない
       const s=scoreComplexity(analyzeComplex(sc));
       if(s>bestS){bestS=s;best=sc;}
       if(s>=70) return sc;
@@ -383,6 +384,7 @@ function generate(diff){
   for(let t=0;t<6000;t++){
     const sc=buildRandom();
     sc.targetIndex=computeStandings(sc.players,sc.scores).order[2]; // 現在3着
+    if(sc.players[sc.targetIndex].seat===sc.dealerSeat) continue;   // 親は対象にしない
     const c=classify(sc);
     last=sc;
     if(accept(c,diff)) return sc;
