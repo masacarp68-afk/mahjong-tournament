@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>麻雀トーナメント条件計算 問題ジェネレーター</title>
+<style>
+  :root{
+    --green:#3aa856; --green-d:#2c8443; --ink:#1f2a24; --sub:#5b6b62;
+    --line:#d7ded9; --bg:#f4f7f5; --card:#ffffff; --hi:#fff6d9; --hi-b:#e9c94a;
+    --blue:#2563eb; --red:#c0392b; --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.05);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;-webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:860px;margin:0 auto;padding:16px}
+  header.top{
+    background:linear-gradient(90deg,var(--green),#7bc47f);color:#fff;border-radius:14px;
+    padding:16px 18px;box-shadow:var(--shadow);margin-bottom:14px;
+  }
+  header.top h1{margin:0;font-size:20px;letter-spacing:.02em}
+  header.top .rule{margin-top:6px;font-size:12.5px;opacity:.96}
+  .controls{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;box-shadow:var(--shadow)
+  }
+  .ctl{display:flex;flex-direction:column;gap:4px}
+  .ctl label{font-size:11.5px;color:var(--sub);font-weight:600}
+  .ctl select,.ctl input{
+    font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#fff;min-width:78px
+  }
+  button{font:inherit;cursor:pointer;border:none;border-radius:9px;padding:9px 15px;font-weight:700;transition:.12s}
+  .btn-main{background:var(--green);color:#fff;box-shadow:var(--shadow)}
+  .btn-main:hover{background:var(--green-d)}
+  .btn-ghost{background:#eef2ef;color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{background:#e3e9e4}
+  .spacer{flex:1}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 16px 18px;margin-bottom:14px}
+  .flavor{font-size:12.5px;color:var(--sub);margin:0 0 10px}
+  .flavor b{color:var(--green-d)}
+
+  table.board{width:100%;border-collapse:collapse;font-size:14px;table-layout:fixed}
+  table.board th,table.board td{border:1px solid var(--line);padding:8px 4px;text-align:center}
+  table.board thead th{background:#eef4ef;font-weight:700}
+  table.board .rowhdr{background:#f6f9f7;font-weight:700;font-size:12px;color:var(--sub);width:96px}
+  table.board td.name{font-weight:700}
+  .oya{display:inline-block;font-size:10px;background:var(--red);color:#fff;border-radius:4px;padding:1px 4px;margin-left:3px;vertical-align:middle}
+  .tgt th,.tgt td{background:var(--hi)!important;}
+  col.tgtcol{}
+  .tgtbadge{display:inline-block;font-size:10px;background:var(--blue);color:#fff;border-radius:4px;padding:1px 5px;margin-left:3px;vertical-align:middle}
+  .neg{color:var(--red)}
+
+  .qline{margin:14px 0 6px;font-size:15px;font-weight:700}
+  .qline .who{color:var(--blue)}
+  .standings{font-size:12.5px;color:var(--sub);margin:2px 0 4px}
+  .standings b{color:var(--ink)}
+
+  .patterns{display:flex;flex-direction:column;gap:9px;margin-top:10px}
+  .pat{border:1px solid var(--line);border-radius:11px;overflow:hidden}
+  .pat .head{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fafcfa;cursor:pointer;user-select:none}
+  .pat .num{width:26px;height:26px;flex:0 0 26px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+  .pat .ptitle{font-weight:700;font-size:14.5px}
+  .pat .peek{margin-left:auto;font-size:12px;color:var(--green-d);font-weight:700}
+  .pat .ans{padding:0 12px;max-height:0;overflow:hidden;transition:max-height .22s ease,padding .22s ease;border-top:1px solid transparent}
+  .pat.open .ans{max-height:260px;padding:11px 12px;border-top:1px solid var(--line)}
+  .ans .big{font-size:16px;font-weight:800}
+  .ans .big.ok{color:var(--green-d)}
+  .ans .big.no{color:var(--red)}
+  .ans .sub{font-size:12.5px;color:var(--sub);margin-top:3px}
+  .ans .why{font-size:12.5px;margin-top:5px;color:var(--ink);background:#f3f7f4;border-radius:7px;padding:6px 9px}
+
+  details.help{margin-top:12px;font-size:12.5px;color:var(--sub)}
+  details.help summary{cursor:pointer;font-weight:700;color:var(--green-d)}
+  details.help div{margin-top:6px}
+  footer{color:var(--sub);font-size:11.5px;text-align:center;padding:10px 0 26px}
+  @media(max-width:560px){
+    table.board{font-size:12.5px}
+    header.top h1{font-size:17px}
+    .ctl select,.ctl input{min-width:64px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>🀄 麻雀トーナメント条件計算ジェネレーター</h1>
+    <div class="rule">日本プロ麻雀協会ルール／25000点持ち・30000点返し・順位点 1位+50 2位+10 3位−10 4位−30（オカ込み）／2着抜け（上位2名通過）</div>
+  </header>
+
+  <div class="controls">
+    <div class="ctl">
+      <label>難易度</label>
+      <select id="difficulty">
+        <option value="easy">やさしい</option>
+        <option value="normal" selected>ふつう</option>
+        <option value="hard">むずかしい</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <label>半荘制</label>
+      <select id="hanchan">
+        <option value="2">2半荘</option>
+        <option value="3" selected>3半荘</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <label>本場</label>
+      <input id="honba" type="number" value="0" min="0" max="20" step="1">
+    </div>
+    <div class="ctl">
+      <label>供託(本)</label>
+      <input id="kyotaku" type="number" value="0" min="0" max="10" step="1">
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-ghost" id="revealAll">答えを全部表示</button>
+    <button class="btn-main" id="newBtn">新しい問題 ↻</button>
+  </div>
+
+  <div class="card" id="problem"><!-- rendered --></div>
+
+  <footer>順位点はオカ込み（1位+50=ウマ+30＋オカ+20）。同点は起家に近い順で上位。条件は「最終局・和了で上位2名以内に入る最低条件」を全和了点から探索して算出しています。</footer>
+</div>
+
+<script>
+/* ============================================================
+   ロジック（協会ルール）— Nodeで検証済み
+   ============================================================ */
+const RETURN_POINTS = 30000;
+const RANK_BONUS = [50, 10, -10, -30];
+
+function computeStandings(players, scores){
+  const byScore=[0,1,2,3].sort((a,b)=> scores[b]!==scores[a]? scores[b]-scores[a] : players[a].seat-players[b].seat);
+  const hanchanRank=[0,0,0,0]; byScore.forEach((pi,r)=>hanchanRank[pi]=r);
+  const totalTenths=[0,0,0,0];
+  for(let i=0;i<4;i++){
+    const preT=Math.round(players[i].pre*10);
+    const rawT=(scores[i]-RETURN_POINTS)/100;
+    const bonusT=RANK_BONUS[hanchanRank[i]]*10;
+    totalTenths[i]=preT+rawT+bonusT;
+  }
+  const order=[0,1,2,3].sort((a,b)=>{
+    if(totalTenths[b]!==totalTenths[a]) return totalTenths[b]-totalTenths[a];
+    if(scores[b]!==scores[a]) return scores[b]-scores[a];
+    return players[a].seat-players[b].seat;
+  });
+  const overallRank=[0,0,0,0]; order.forEach((pi,r)=>overallRank[pi]=r);
+  return {order,totalTenths,hanchanRank,overallRank};
+}
+
+const LIMIT_HANDS=[
+  {han:5,name:'満貫',base:2000},{han:6,name:'跳満',base:3000},
+  {han:8,name:'倍満',base:4000},{han:11,name:'三倍満',base:6000},{han:13,name:'役満',base:8000},
+];
+const ceil100=x=>Math.ceil(x/100)*100;
+
+function enumerateHands(isDealer,isTsumo){
+  const list=[];
+  const push=(han,fu,base,name)=>{
+    let total,fromDealer=0,fromChild=0;
+    if(isTsumo){
+      if(isDealer){ fromChild=ceil100(2*base); total=3*fromChild; }
+      else{ fromDealer=ceil100(2*base); fromChild=ceil100(base); total=fromDealer+2*fromChild; }
+    } else { total=isDealer?ceil100(6*base):ceil100(4*base); }
+    list.push({label:name||`${han}翻${fu}符`,han,fu,base,total,fromDealer,fromChild});
+  };
+  const fuByHan={1:[30,40,50,60,70],2:[20,25,30,40,50,60,70],3:[20,25,30,40,50,60,70],4:[20,25,30,40,50,60,70]};
+  const seen=new Set();
+  for(let han=1;han<=4;han++) for(const fu of fuByHan[han]){
+    if(fu===20&&(!isTsumo||han<2)) continue;
+    if(fu===25&&han<2) continue;
+    const base=fu*Math.pow(2,2+han);
+    if(base>=2000) continue;
+    const k=han+'-'+fu; if(seen.has(k))continue; seen.add(k);
+    push(han,fu,base,`${han}翻${fu}符`);
+  }
+  for(const Lh of LIMIT_HANDS) push(Lh.han,null,Lh.base,Lh.name);
+  list.sort((a,b)=>a.total-b.total||a.han-b.han);
+  const uniq=[],ts=new Set();
+  for(const h of list){ if(ts.has(h.total))continue; ts.add(h.total); uniq.push(h); }
+  return uniq;
+}
+
+function applyAgari(scores,players,targetIndex,dealerSeat,winType,hand,honba,kyotaku){
+  const ns=scores.slice();
+  const isDealer=players[targetIndex].seat===dealerSeat;
+  const honbaPts=honba*300, kyotakuPts=kyotaku*1000;
+  if(winType.type==='ron'){
+    const from=winType.from;
+    ns[targetIndex]+=hand.total+honbaPts+kyotakuPts;
+    ns[from]-=hand.total+honbaPts;
+  } else {
+    const honbaEach=honba*100; let got=0;
+    for(let i=0;i<4;i++){ if(i===targetIndex)continue;
+      const isDlr=players[i].seat===dealerSeat;
+      const pay=(isDealer?hand.fromChild:(isDlr?hand.fromDealer:hand.fromChild))+honbaEach;
+      ns[i]-=pay; got+=pay;
+    }
+    ns[targetIndex]+=got+kyotakuPts;
+  }
+  return ns;
+}
+
+function targetPasses(sc,winType,hand){
+  const ns=applyAgari(sc.scores,sc.players,sc.targetIndex,sc.dealerSeat,winType,hand,sc.honba||0,sc.kyotaku||0);
+  return computeStandings(sc.players,ns).overallRank[sc.targetIndex]<=1;
+}
+
+function solvePattern(sc,winType){
+  const isDealer=sc.players[sc.targetIndex].seat===sc.dealerSeat;
+  const hands=enumerateHands(isDealer,winType.type==='tsumo');
+  for(let i=0;i<hands.length;i++){
+    if(targetPasses(sc,winType,hands[i]))
+      return {possible:true,hand:hands[i],always:i===0,index:i};
+  }
+  return {possible:false,hand:null,always:false,index:-1};
+}
+
+function solveAll(sc){
+  const out=[];
+  for(let j=0;j<4;j++){ if(j===sc.targetIndex)continue;
+    out.push({kind:'ron',from:j,result:solvePattern(sc,{type:'ron',from:j})}); }
+  out.push({kind:'tsumo',result:solvePattern(sc,{type:'tsumo'})});
+  return out;
+}
+
+/* 解説：最小手で和了った後の順位・交わした相手 */
+function explain(sc,winType,hand){
+  const ns=applyAgari(sc.scores,sc.players,sc.targetIndex,sc.dealerSeat,winType,hand,sc.honba||0,sc.kyotaku||0);
+  const st=computeStandings(sc.players,ns);
+  const tRank=st.overallRank[sc.targetIndex];
+  const thirdIdx=st.order[2];
+  const passName=sc.players[thirdIdx].name;
+  return {tRank,passName,ns,st};
+}
+
+/* ============================================================
+   問題ジェネレーター
+   ============================================================ */
+const SURNAMES=['佐藤','鈴木','高橋','田中','伊藤','渡辺','山本','中村','小林','加藤',
+  '吉田','山田','佐々木','山口','松本','井上','木村','林','斎藤','清水',
+  '江崎','富永','武中','黄河','大和','三宅','福本','片山','神崎'];
+const SEAT_LABEL=['東','南','西','北'];
+
+function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function randScores(){
+  // 100点刻み・合計100000・各家 3000〜46000
+  for(let t=0;t<500;t++){
+    const a=randInt(60,430)*100, b=randInt(60,430)*100, c=randInt(60,430)*100;
+    const d=100000-a-b-c;
+    if(d>=3000&&d<=46000) return shuffle([a,b,c,d]);
+  }
+  return [25000,25000,25000,25000];
+}
+function randPre(){
+  // 0.1刻み・合計0
+  const a=randInt(-550,550)/10, b=randInt(-550,550)/10, c=randInt(-550,550)/10;
+  let d=-(a+b+c); d=Math.round(d*10)/10;
+  return [a,b,c,d];
+}
+
+function classify(sc){
+  const res=solveAll(sc);
+  const st=computeStandings(sc.players,sc.scores);
+  const tRank=st.overallRank[sc.targetIndex];      // 0..3
+  const totals=res.map(r=>r.result.possible?r.result.hand.total:Infinity);
+  const nPoss=totals.filter(t=>t<Infinity).length;
+  const minT=Math.min(...totals);
+  const tsumo=res.find(r=>r.kind==='tsumo').result;
+  const tsumoT=tsumo.possible?tsumo.hand.total:Infinity;
+  const anyAlways=res.some(r=>r.result.always);
+  return {res,st,tRank,nPoss,minT,tsumoT,anyAlways};
+}
+
+function buildRandom(){
+  const names=shuffle(SURNAMES).slice(0,4);
+  const players=names.map((name,i)=>({name,pre:0,seat:i}));
+  const pre=randPre(); players.forEach((p,i)=>p.pre=pre[i]);
+  const scores=randScores();
+  const dealerSeat=randInt(0,3);
+  return {players,scores,dealerSeat,targetIndex:0,honba:0,kyotaku:0};
+}
+
+function accept(c,diff){
+  // 対象は「現在3着」＝逆転で2着に上がる問題（やさしい/ふつう用）
+  if(c.tRank!==2) return false;
+  if(c.nPoss===0) return false;
+  if(diff==='easy')   return c.nPoss>=3 && c.minT>=1300 && c.minT<=3900 && c.tsumoT<=8000;
+  if(diff==='normal') return c.nPoss>=2 && c.minT>=2600 && c.minT<=8000 && c.tsumoT<=16000;
+  return false;
+}
+
+/* --- むずかしい：打点ではなく「構造の複雑さ」で選ぶ --- */
+function kindOf(t){ if(t===Infinity)return 'imp'; if(t<=3900)return 'cheap'; if(t<=8000)return 'mid'; return 'big'; }
+
+// 「討った相手は捲れるのに、別の人に差される」検出（最安手で討っても対象が3着以下）
+function leapfrogInfo(sc,from){
+  const isDealer=sc.players[sc.targetIndex].seat===sc.dealerSeat;
+  const h0=enumerateHands(isDealer,false)[0];
+  const ns=applyAgari(sc.scores,sc.players,sc.targetIndex,sc.dealerSeat,{type:'ron',from},h0,sc.honba||0,sc.kyotaku||0);
+  const st=computeStandings(sc.players,ns);
+  const tR=st.overallRank[sc.targetIndex], xR=st.overallRank[from];
+  if(tR>1 && xR>tR) return {leap:true, wall:sc.players[st.order[tR-1]].name};
+  return {leap:false};
+}
+// 役満でも上に残るブロッカー名（不可能パターンの説明用）
+function blockersAtMax(sc,winType){
+  const isDealer=sc.players[sc.targetIndex].seat===sc.dealerSeat;
+  const hands=enumerateHands(isDealer,winType.type==='tsumo');
+  const ns=applyAgari(sc.scores,sc.players,sc.targetIndex,sc.dealerSeat,winType,hands[hands.length-1],sc.honba||0,sc.kyotaku||0);
+  const st=computeStandings(sc.players,ns);
+  const tR=st.overallRank[sc.targetIndex];
+  return st.order.slice(0,Math.min(tR,2)).map(i=>sc.players[i].name);
+}
+
+function analyzeComplex(sc){
+  const res=solveAll(sc);
+  const st=computeStandings(sc.players,sc.scores);
+  const tRank=st.overallRank[sc.targetIndex];
+  const ron=res.filter(r=>r.kind==='ron');
+  const tsumo=res.find(r=>r.kind==='tsumo').result;
+  const allTot=[...ron.map(r=>r.result.possible?r.result.hand.total:Infinity),
+                tsumo.possible?tsumo.hand.total:Infinity];
+  const nPoss=allTot.filter(t=>t<Infinity).length;
+  const minPoss=Math.min(...allTot);
+  const kinds=new Set(allTot.map(kindOf));
+  const leaps=ron.filter(r=>leapfrogInfo(sc,r.from).leap).length;
+  return {tRank,nPoss,minPoss,kinds,allTot,leaps};
+}
+function scoreComplexity(a){
+  if(a.tRank!==2||a.nPoss===0) return -1000;
+  let s=a.kinds.size*12;
+  if(a.allTot.some(t=>t<=3900)) s+=18;                 // 軽い正解口＝読みの問題
+  if(a.allTot.some(t=>t===Infinity)) s+=16;            // どれかは不可＝討つ相手が重要
+  if(a.allTot[3]===Infinity||a.allTot[3]>=7700) s+=8;  // ツモは楽な逃げ道でない
+  if(a.minPoss>5200) s-=14;
+  const fin=a.allTot.filter(t=>t<Infinity);
+  if(fin.every(t=>t>=8000)) s-=25;                     // 全部満貫級＝打点ゲー
+  if(fin.every(t=>t<=2600)) s-=25;                     // 全部激安＝簡単
+  s+=a.leaps*22;                                        // まくり→差され構造を優遇
+  return s;
+}
+
+function generate(diff){
+  if(diff==='hard'){
+    let best=null,bestS=-1e9;
+    for(let t=0;t<8000;t++){
+      const sc=buildRandom();
+      sc.targetIndex=computeStandings(sc.players,sc.scores).order[2]; // 現在3着
+      const s=scoreComplexity(analyzeComplex(sc));
+      if(s>bestS){bestS=s;best=sc;}
+      if(s>=70) return sc;
+    }
+    return best||buildRandom();
+  }
+  let last=null;
+  for(let t=0;t<6000;t++){
+    const sc=buildRandom();
+    sc.targetIndex=computeStandings(sc.players,sc.scores).order[2]; // 現在3着
+    const c=classify(sc);
+    last=sc;
+    if(accept(c,diff)) return sc;
+  }
+  return last||buildRandom();
+}
+
+/* ============================================================
+   描画
+   ============================================================ */
+const $=s=>document.querySelector(s);
+let current=null;      // {players,scores,dealerSeat,targetIndex}
+let revealed=false;
+
+function fmtPre(v){
+  const s=Math.abs(v).toFixed(1);
+  return v<0?`<span class="neg">▲${s}</span>`:`+${s}`;
+}
+function fmtPt(t){ // tenths -> string
+  const v=t/10; const s=Math.abs(v).toFixed(1);
+  return v<0?`▲${s}`:`+${s}`;
+}
+
+function render(){
+  const sc=current;
+  const honba=+$('#honba').value||0, kyotaku=+$('#kyotaku').value||0;
+  sc.honba=honba; sc.kyotaku=kyotaku;
+  const hanchan=$('#hanchan').value;
+  const tIdx=sc.targetIndex;
+  const tName=sc.players[tIdx].name;
+  const st=computeStandings(sc.players,sc.scores);
+  const results=solveAll(sc);
+
+  // ---- テーブル ----
+  let cols='',thName='',rPre='',rSco='';
+  for(let i=0;i<4;i++){
+    const p=sc.players[i];
+    const isT=i===tIdx, isOya=p.seat===sc.dealerSeat;
+    const cls=isT?'tgt':'';
+    thName+=`<th class="${cls} name">${p.name}${isOya?'<span class="oya">親</span>':''}${isT?'<span class="tgtbadge">対象</span>':''}<br><span style="font-size:11px;color:#5b6b62;font-weight:400">${SEAT_LABEL[p.seat]}家</span></th>`;
+    rPre+=`<td class="${cls}">${fmtPre(p.pre)}</td>`;
+    rSco+=`<td class="${cls}">${sc.scores[i].toLocaleString()}</td>`;
+  }
+
+  // ---- 現在順位 ----
+  const standTxt=st.order.map((pi,r)=>`${r+1}位 <b>${sc.players[pi].name}</b> ${fmtPt(st.totalTenths[pi])}`).join('　/　');
+
+  // ---- 4パターン ----
+  const honbaTxt=honba>0?`・${honba}本場`:'';
+  const kyoTxt=kyotaku>0?`・供託${kyotaku}本`:'';
+  let pats='';
+  results.forEach((r,idx)=>{
+    const n=idx+1;
+    let title,ans;
+    if(r.kind==='ron'){
+      const victim=sc.players[r.from].name;
+      title=`${victim} から ロン（直撃）`;
+      ans=answerHTML(sc,{type:'ron',from:r.from},r.result);
+    } else {
+      title=`ツモ`;
+      ans=answerHTML(sc,{type:'tsumo'},r.result);
+    }
+    pats+=`
+      <div class="pat ${revealed?'open':''}" data-idx="${idx}">
+        <div class="head" onclick="togglePat(this)">
+          <div class="num">${n}</div>
+          <div class="ptitle">${title}</div>
+          <div class="peek">${revealed?'':'答えを見る ▾'}</div>
+        </div>
+        <div class="ans">${ans}</div>
+      </div>`;
+  });
+
+  $('#problem').innerHTML=`
+    <p class="flavor"><b>${hanchan}半荘制</b> の最終半荘・オーラス。下表は<b>最終半荘開始前のトータルポイント</b>と<b>現在の持ち点</b>。${honbaTxt}${kyoTxt}</p>
+    <table class="board">
+      <thead><tr><th class="rowhdr"></th>${thName}</tr></thead>
+      <tbody>
+        <tr><td class="rowhdr">最終半荘前ポイント</td>${rPre}</tr>
+        <tr><td class="rowhdr">現在の点数</td>${rSco}</tr>
+      </tbody>
+    </table>
+    <div class="qline">Q. <span class="who">${tName}</span> が2着抜け（上位2名通過）するための和了条件は？${honbaTxt}${kyoTxt}</div>
+    <div class="standings">現在のトータル順位（この持ち点のまま終局した場合）：${standTxt}</div>
+    <div class="patterns">${pats}</div>
+    <details class="help">
+      <summary>解き方・ルールの補足</summary>
+      <div>
+        各家のトータル＝〔最終半荘前ポイント〕＋〔(素点−30000)÷1000〕＋〔順位点〕。順位点は 1位+50 / 2位+10 / 3位−10 / 4位−30（オカ込み）。<br>
+        「◯◯点以上」は、その和了で ${tName} が上位2名に入る<b>最低点</b>です。直撃(ロン)は相手の点も減るため、ツモや別の相手より軽い条件になりがちです。同点は起家に近い家が上位。
+      </div>
+    </details>
+  `;
+}
+
+function answerHTML(sc,winType,result){
+  const tName=sc.players[sc.targetIndex].name;
+  if(!result.possible){
+    const bl=blockersAtMax(sc,winType);
+    const who=bl.length?`${bl.join('・')} に届かず`:'上位2名に届かず';
+    const hint=winType.type==='ron'
+      ? `${sc.players[winType.from].name}を直撃しても${who}、このパターンでは通過不可（条件なし）。`
+      : `ツモでは${who}、このパターンでは通過不可（条件なし）。`;
+    return `<div class="big no">役満でも通過不可</div><div class="sub">${hint}</div>`;
+  }
+  const h=result.hand;
+  const ex=explain(sc,winType,h);
+  const rankTxt=ex.tRank===0?'トップに立って通過':`${ex.passName} を交わして2着で通過`;
+  let handTxt;
+  if(h.fu) handTxt=`${h.han}翻${h.fu}符`; else handTxt=h.label;
+  const tsumoSplit=(winType.type==='tsumo')?tsumoSplitText(sc,h):'';
+  // まくり→差され構造の注記
+  let note='';
+  if(winType.type==='ron'){
+    const lf=leapfrogInfo(sc,winType.from);
+    const vName=sc.players[winType.from].name;
+    if(lf.leap && lf.wall!==vName)
+      note=`<div class="why" style="background:#fff6e6">💡 ${vName} は軽い手でも捲れますが、それだけでは <b>${lf.wall}</b> を上回れず3着のまま。通過には ${lf.wall} を交わす打点（${h.total.toLocaleString()}点以上）が必要です。</div>`;
+  }
+  if(result.always){
+    return `<div class="big ok">どの手でも通過（${h.total.toLocaleString()}点でも可）</div>
+      <div class="sub">最低打点でも上位2名に入ります（${handTxt}${tsumoSplit}）。</div>
+      <div class="why">結果：${rankTxt}。</div>${note}`;
+  }
+  return `<div class="big ok">${h.total.toLocaleString()}点 以上</div>
+    <div class="sub">最低条件：<b>${handTxt}</b>${tsumoSplit} 以上</div>
+    <div class="why">結果：${rankTxt}。</div>${note}`;
+}
+
+function tsumoSplitText(sc,h){
+  const isDealer=sc.players[sc.targetIndex].seat===sc.dealerSeat;
+  if(isDealer) return `（${h.fromChild.toLocaleString()}オール）`;
+  return `（子${h.fromChild.toLocaleString()}／親${h.fromDealer.toLocaleString()}）`;
+}
+
+window.togglePat=function(el){
+  const pat=el.parentElement;
+  pat.classList.toggle('open');
+  const peek=el.querySelector('.peek');
+  if(peek) peek.textContent = pat.classList.contains('open')?'':'答えを見る ▾';
+};
+
+function newProblem(){
+  revealed=false;
+  $('#revealAll').textContent='答えを全部表示';
+  current=generate($('#difficulty').value);
+  render();
+}
+
+$('#newBtn').onclick=newProblem;
+$('#revealAll').onclick=function(){
+  revealed=!revealed;
+  this.textContent=revealed?'答えを隠す':'答えを全部表示';
+  render();
+};
+$('#honba').onchange=render;
+$('#kyotaku').onchange=render;
+$('#hanchan').onchange=render;
+$('#difficulty').onchange=newProblem;
+
+newProblem();
+</script>
+</body>
+</html>
