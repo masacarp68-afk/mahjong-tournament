@@ -92,10 +92,18 @@
 <div class="wrap">
   <header class="top">
     <h1>🀄 麻雀トーナメント条件計算ジェネレーター</h1>
-    <div class="rule">日本プロ麻雀協会ルール／25000点持ち・30000点返し・順位点 1位+50 2位+10 3位−10 4位−30（オカ込み）／2着抜け（上位2名通過）</div>
+    <div class="rule" id="ruleText"></div>
   </header>
 
   <div class="controls">
+    <div class="ctl">
+      <label>ルール</label>
+      <select id="ruleset">
+        <option value="kyokai" selected>協会</option>
+        <option value="wrc">WRC</option>
+        <option value="saikoi">最高位戦</option>
+      </select>
+    </div>
     <div class="ctl">
       <label>難易度</label>
       <select id="difficulty">
@@ -132,15 +140,31 @@
 
   <div class="card" id="problem"><!-- rendered --></div>
 
-  <footer>順位点はオカ込み（1位+50=ウマ+30＋オカ+20）。素点が同点なら順位点は折半。合計ポイントが同点なら最終半荘前ポイントが上の人が勝ち抜け。条件は「最終局・和了で上位2名以内に入る最低条件」を全和了点から探索して算出しています。</footer>
+  <footer>選択したルールの持ち点・返し点・順位点で計算します（協会はオカ込み、WRC・最高位戦はオカなし）。素点が同点なら順位点は折半。合計ポイントが同点なら最終半荘前ポイントが上の人が勝ち抜け。条件は「最終局・和了で上位2名以内に入る最低条件」を全和了点（50符以下＋満貫以上）から探索して算出しています。</footer>
 </div>
 
 <script>
 /* ============================================================
    ロジック（協会ルール）— Nodeで検証済み
    ============================================================ */
-const RETURN_POINTS = 30000;
-const RANK_BONUS = [50, 10, -10, -30];
+const RULES={
+  kyokai:{name:'日本プロ麻雀協会', start:25000, ret:30000, bonus:[50,10,-10,-30],
+    desc:'25000点持ち・30000点返し・順位点 1位+50 2位+10 3位−10 4位−30（オカ込み）'},
+  wrc:{name:'WRC（リーチ麻雀世界選手権）', start:30000, ret:30000, bonus:[15,5,-5,-15],
+    desc:'30000点持ち・30000点返し・ウマ 1位+15 2位+5 3位−5 4位−15（オカなし）'},
+  saikoi:{name:'最高位戦', start:30000, ret:30000, bonus:[30,10,-10,-30],
+    desc:'30000点持ち・30000点返し・ウマ 1位+30 2位+10 3位−10 4位−30（オカなし）'},
+};
+let RULE=RULES.kyokai;
+let RETURN_POINTS = RULE.ret;
+let RANK_BONUS = RULE.bonus.slice();
+const sgn=x=>x>0?`+${x}`:`${x}`;
+function applyRule(){
+  RULE=RULES[$('#ruleset').value]||RULES.kyokai;
+  RETURN_POINTS=RULE.ret;
+  RANK_BONUS=RULE.bonus.slice();
+  $('#ruleText').textContent=`${RULE.name}ルール／${RULE.desc}／2着抜け（上位2名通過）`;
+}
 
 const EPS=1e-6;
 function computeStandings(players, scores){
@@ -273,13 +297,16 @@ function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
 function randScores(){
-  // 100点刻み・合計100000・各家 3000〜46000
-  for(let t=0;t<500;t++){
-    const a=randInt(60,430)*100, b=randInt(60,430)*100, c=randInt(60,430)*100;
-    const d=100000-a-b-c;
-    if(d>=3000&&d<=46000) return shuffle([a,b,c,d]);
+  // 100点刻み・合計 4×原点・持ち点に応じた妥当な散らばり
+  const start=RULE.start, total=4*start;
+  const lo=Math.round(start*0.25/100), hi=Math.round(start*1.5/100);
+  const hiCap=Math.round(start*1.8);
+  for(let t=0;t<800;t++){
+    const a=randInt(lo,hi)*100, b=randInt(lo,hi)*100, c=randInt(lo,hi)*100;
+    const d=total-a-b-c;
+    if(d>=3000&&d<=hiCap) return shuffle([a,b,c,d]);
   }
-  return [25000,25000,25000,25000];
+  return [start,start,start,start];
 }
 function randPre(){
   // 0.1刻み・合計0
@@ -484,9 +511,10 @@ function render(){
     <details class="help">
       <summary>解き方・ルールの補足</summary>
       <div>
-        各家のトータル＝〔最終半荘前ポイント〕＋〔(素点−30000)÷1000〕＋〔順位点〕。順位点は 1位+50 / 2位+10 / 3位−10 / 4位−30（オカ込み）。<br>
+        <b>${RULE.name}ルール</b>：${RULE.desc}。<br>
+        各家のトータル＝〔最終半荘前ポイント〕＋〔(素点−${RETURN_POINTS.toLocaleString()})÷1000〕＋〔順位点〕。順位点は 1位${sgn(RANK_BONUS[0])} / 2位${sgn(RANK_BONUS[1])} / 3位${sgn(RANK_BONUS[2])} / 4位${sgn(RANK_BONUS[3])}。<br>
         「◯◯点以上」は、その和了で ${tName} が上位2名に入る<b>最低点</b>です。直撃(ロン)は相手の点も減るため、ツモや別の相手より軽い条件になりがちです。<br>
-        素点が同点なら順位点は<b>折半</b>（例：1位2位が同点なら両者(+50+10)÷2=+30）。合計ポイントが同点なら<b>最終半荘前ポイントが上の人</b>が勝ち抜けます。
+        素点が同点なら順位点は<b>折半</b>（例：1位2位が同点なら両者(${RANK_BONUS[0]}+${RANK_BONUS[1]})÷2=${sgn((RANK_BONUS[0]+RANK_BONUS[1])/2)}）。合計ポイントが同点なら<b>最終半荘前ポイントが上の人</b>が勝ち抜けます。
       </div>
     </details>
   `;
@@ -542,6 +570,7 @@ window.togglePat=function(el){
 function newProblem(){
   revealed=false;
   $('#revealAll').textContent='答えを全部表示';
+  applyRule();
   KIRIAGE=$('#kiriage').checked;
   current=generate($('#difficulty').value);
   render();
@@ -558,7 +587,9 @@ $('#kyotaku').onchange=render;
 $('#hanchan').onchange=render;
 $('#kiriage').onchange=render;
 $('#difficulty').onchange=newProblem;
+$('#ruleset').onchange=newProblem;
 
+applyRule();
 newProblem();
 </script>
 </body>
