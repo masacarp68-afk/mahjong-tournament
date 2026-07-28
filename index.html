@@ -77,6 +77,23 @@
   .ans .sub{font-size:12.5px;color:var(--sub);margin-top:3px}
   .ans .why{font-size:12.5px;margin-top:5px;color:var(--ink);background:#f3f7f4;border-radius:7px;padding:6px 9px}
 
+  /* クイズモード */
+  .quizrow{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+  .quizrow .qin{font:inherit;width:120px;padding:7px 9px;border:1.5px solid var(--line);border-radius:8px;text-align:right}
+  .quizrow .qin:focus{outline:none;border-color:var(--green)}
+  .quizrow .qunit{font-size:13px;color:var(--sub)}
+  .quizrow .qimp{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--sub);margin-left:4px}
+  .quizrow .qimp input{width:16px;height:16px}
+  .quizrow .qres{margin-left:auto;font-size:13.5px;font-weight:800}
+  .qres .ok-badge{color:var(--green-d)}
+  .qres .ng-badge{color:var(--red)}
+  .qres .qkey{font-weight:700;color:var(--ink);font-size:12.5px;margin-left:6px}
+  .quizdet{padding:0 12px}
+  .quizdet:not(:empty){padding:0 12px 11px}
+  .quizbar{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .quizbar #quizScore{font-weight:800;font-size:15px;color:var(--green-d)}
+  .qnote{font-size:11.5px;color:var(--sub);margin:8px 2px 0}
+
   details.help{margin-top:12px;font-size:12.5px;color:var(--sub)}
   details.help summary{cursor:pointer;font-weight:700;color:var(--green-d)}
   details.help div{margin-top:6px}
@@ -96,6 +113,13 @@
   </header>
 
   <div class="controls">
+    <div class="ctl">
+      <label>モード</label>
+      <select id="mode">
+        <option value="practice" selected>練習</option>
+        <option value="quiz">クイズ</option>
+      </select>
+    </div>
     <div class="ctl">
       <label>ルール</label>
       <select id="ruleset">
@@ -468,28 +492,46 @@ function render(){
   // ---- 4パターン ----
   const honbaTxt=honba>0?`・${honba}本場`:'';
   const kyoTxt=kyotaku>0?`・供託${kyotaku}本`:'';
+  const mode=$('#mode').value;
   let pats='';
   results.forEach((r,idx)=>{
     const n=idx+1;
-    let title,ans;
-    if(r.kind==='ron'){
-      const victim=sc.players[r.from].name;
-      title=`${victim} から ロン（直撃）`;
-      ans=answerHTML(sc,{type:'ron',from:r.from},r.result);
+    const title = r.kind==='ron' ? `${sc.players[r.from].name} から ロン（直撃）` : `ツモ`;
+    if(mode==='quiz'){
+      const unit = r.kind==='tsumo' ? '点(合計) 以上' : '点 以上';
+      pats+=`
+        <div class="pat" data-idx="${idx}">
+          <div class="head" style="cursor:default">
+            <div class="num">${n}</div>
+            <div class="ptitle">${title}</div>
+          </div>
+          <div class="quizrow">
+            <input id="quiz-in-${idx}" class="qin" type="text" inputmode="numeric" placeholder="点数">
+            <span class="qunit">${unit}</span>
+            <label class="qimp"><input id="quiz-imp-${idx}" type="checkbox"> 通過不可</label>
+            <span id="quiz-res-${idx}" class="qres"></span>
+          </div>
+          <div id="quiz-det-${idx}" class="quizdet"></div>
+        </div>`;
     } else {
-      title=`ツモ`;
-      ans=answerHTML(sc,{type:'tsumo'},r.result);
+      const ans = r.kind==='ron' ? answerHTML(sc,{type:'ron',from:r.from},r.result) : answerHTML(sc,{type:'tsumo'},r.result);
+      pats+=`
+        <div class="pat ${revealed?'open':''}" data-idx="${idx}">
+          <div class="head" onclick="togglePat(this)">
+            <div class="num">${n}</div>
+            <div class="ptitle">${title}</div>
+            <div class="peek">${revealed?'':'答えを見る ▾'}</div>
+          </div>
+          <div class="ans">${ans}</div>
+        </div>`;
     }
-    pats+=`
-      <div class="pat ${revealed?'open':''}" data-idx="${idx}">
-        <div class="head" onclick="togglePat(this)">
-          <div class="num">${n}</div>
-          <div class="ptitle">${title}</div>
-          <div class="peek">${revealed?'':'答えを見る ▾'}</div>
-        </div>
-        <div class="ans">${ans}</div>
-      </div>`;
   });
+  const quizBar = mode==='quiz'
+    ? `<div class="quizbar"><button id="gradeBtn" class="btn-main">採点する</button><span id="quizScore"></span></div>
+       <p class="qnote">各条件で「最低何点あがれば通過か」を入力。ツモは受け取る合計点で回答。通過不可のパターンは「通過不可」にチェック。</p>`
+    : '';
+  // 上部の「答えを全部表示」ボタンは練習モードのみ
+  const rv=$('#revealAll'); if(rv) rv.style.display = mode==='quiz'?'none':'';
 
   $('#problem').innerHTML=`
     <p class="flavor"><b>${hanchan}半荘制</b> の最終半荘・オーラス。下表は<b>最終半荘開始前のトータルポイント</b>と<b>現在の持ち点</b>。${honbaTxt}${kyoTxt}</p>
@@ -508,6 +550,7 @@ function render(){
       <div class="stand-body">この持ち点のまま終局した場合：${standTxt}</div>
     </div>
     <div class="patterns">${pats}</div>
+    ${quizBar}
     <details class="help">
       <summary>解き方・ルールの補足</summary>
       <div>
@@ -518,6 +561,32 @@ function render(){
       </div>
     </details>
   `;
+  const gb=$('#gradeBtn'); if(gb) gb.onclick=gradeQuiz;
+}
+
+function gradeQuiz(){
+  const sc=current;
+  const results=solveAll(sc);
+  let correct=0;
+  results.forEach((r,idx)=>{
+    const res=r.result;
+    const imp=$('#quiz-imp-'+idx).checked;
+    const raw=($('#quiz-in-'+idx).value||'').replace(/[^0-9]/g,'');
+    const num=raw?parseInt(raw,10):NaN;
+    let ok,key;
+    if(!res.possible){ ok=imp; key='通過不可（条件なし）'; }
+    else {
+      key=res.hand.total.toLocaleString()+'点以上'+(res.always?'（どの手でも可）':'');
+      ok=(!imp)&&Number.isFinite(num)&&num===res.hand.total;
+    }
+    if(ok) correct++;
+    $('#quiz-res-'+idx).innerHTML =
+      (ok?'<span class="ok-badge">○ 正解</span>':'<span class="ng-badge">× 不正解</span>')
+      +` <span class="qkey">正解：${key}</span>`;
+    const wt=r.kind==='ron'?{type:'ron',from:r.from}:{type:'tsumo'};
+    $('#quiz-det-'+idx).innerHTML=`<div class="ans" style="max-height:none;padding:6px 0 2px;border:0">${answerHTML(sc,wt,res)}</div>`;
+  });
+  $('#quizScore').textContent=`　${correct} / 4 正解`;
 }
 
 function answerHTML(sc,winType,result){
@@ -586,6 +655,7 @@ $('#honba').onchange=render;
 $('#kyotaku').onchange=render;
 $('#hanchan').onchange=render;
 $('#kiriage').onchange=render;
+$('#mode').onchange=render;
 $('#difficulty').onchange=newProblem;
 $('#ruleset').onchange=newProblem;
 
