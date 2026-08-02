@@ -124,6 +124,7 @@
       <label>ルール</label>
       <select id="ruleset">
         <option value="kyokai" selected>協会</option>
+        <option value="renmei">連盟</option>
         <option value="wrc">WRC</option>
         <option value="saikoi">最高位戦</option>
       </select>
@@ -179,6 +180,9 @@
 const RULES={
   kyokai:{name:'日本プロ麻雀協会', start:25000, ret:30000, bonus:[50,10,-10,-30],
     desc:'25000点持ち・30000点返し・順位点 1位+50 2位+10 3位−10 4位−30（オカ込み）'},
+  renmei:{name:'日本プロ麻雀連盟', start:30000, ret:30000, variable:true,
+    bonusByUki:{1:[12,-1,-3,-8],2:[8,4,-4,-8],3:[8,3,1,-12]},
+    desc:'30000点持ち・30000点返し・順位点は変動制（浮き人数で変化）・オカなし'},
   wrc:{name:'WRC（リーチ麻雀世界選手権）', start:30000, ret:30000, bonus:[15,5,-5,-15],
     desc:'30000点持ち・30000点返し・ウマ 1位+15 2位+5 3位−5 4位−15（オカなし）'},
   saikoi:{name:'最高位戦', start:30000, ret:30000, bonus:[30,10,-10,-30],
@@ -187,23 +191,33 @@ const RULES={
 let RULE=RULES.kyokai;
 let RETURN_POINTS = RULE.ret;
 let RANK_BONUS = RULE.bonus.slice();
+let BONUS_BY_UKI = null;   // 連盟：浮き人数→順位点
 const sgn=x=>x>0?`+${x}`:`${x}`;
 function applyRule(){
   RULE=RULES[$('#ruleset').value]||RULES.kyokai;
   RETURN_POINTS=RULE.ret;
-  RANK_BONUS=RULE.bonus.slice();
+  if(RULE.variable){ BONUS_BY_UKI=RULE.bonusByUki; RANK_BONUS=RULE.bonusByUki[2].slice(); }
+  else { BONUS_BY_UKI=null; RANK_BONUS=RULE.bonus.slice(); }
   $('#ruleText').textContent=`${RULE.name}ルール／${RULE.desc}／2着抜け（上位2名通過）`;
+}
+// その局の順位点配列（連盟は浮き人数で変動）
+function bonusFor(scores){
+  if(!BONUS_BY_UKI) return RANK_BONUS;
+  let uki=0; for(const s of scores) if(s>RETURN_POINTS) uki++;
+  uki=Math.max(1,Math.min(3,uki));
+  return BONUS_BY_UKI[uki];
 }
 
 const EPS=1e-6;
 function computeStandings(players, scores){
-  // 素点降順に並べ、同点はグループ化して順位点を折半（等分）
+  // 素点降順に並べ、同点はグループ化して順位点を折半（按分）
   const idx=[0,1,2,3].sort((a,b)=> scores[b]!==scores[a]? scores[b]-scores[a] : players[a].seat-players[b].seat);
+  const BONUS=bonusFor(scores);
   const bonusT=[0,0,0,0];
   let i=0;
   while(i<4){
     let j=i; while(j<4 && scores[idx[j]]===scores[idx[i]]) j++;
-    let sum=0; for(let p=i;p<j;p++) sum+=RANK_BONUS[p];
+    let sum=0; for(let p=i;p<j;p++) sum+=BONUS[p];
     const avgT=(sum/(j-i))*10;
     for(let p=i;p<j;p++) bonusT[idx[p]]=avgT;
     i=j;
@@ -560,9 +574,13 @@ function render(){
       <summary>解き方・ルールの補足</summary>
       <div>
         <b>${RULE.name}ルール</b>：${RULE.desc}。<br>
-        各家のトータル＝〔最終半荘前ポイント〕＋〔(素点−${RETURN_POINTS.toLocaleString()})÷1000〕＋〔順位点〕。順位点は 1位${sgn(RANK_BONUS[0])} / 2位${sgn(RANK_BONUS[1])} / 3位${sgn(RANK_BONUS[2])} / 4位${sgn(RANK_BONUS[3])}。<br>
-        「◯◯点以上」は、その和了で ${tName} が上位2名に入る<b>最低点</b>です。直撃(ロン)は相手の点も減るため、ツモや別の相手より軽い条件になりがちです。<br>
-        素点が同点なら順位点は<b>折半</b>（例：1位2位が同点なら両者(${RANK_BONUS[0]}+${RANK_BONUS[1]})÷2=${sgn((RANK_BONUS[0]+RANK_BONUS[1])/2)}）。合計ポイントが同点なら<b>最終半荘前ポイントが上の人</b>が勝ち抜けます。
+        各家のトータル＝〔最終半荘前ポイント〕＋〔(素点−${RETURN_POINTS.toLocaleString()})÷1000〕＋〔順位点〕。${
+          BONUS_BY_UKI
+          ? `順位点は<b>浮き（3万超）人数で変動</b>：1人浮き 1位+12/2位−1/3位−3/4位−8、2人浮き +8/+4/−4/−8、3人浮き +8/+3/+1/−12。`
+          : `順位点は 1位${sgn(RANK_BONUS[0])} / 2位${sgn(RANK_BONUS[1])} / 3位${sgn(RANK_BONUS[2])} / 4位${sgn(RANK_BONUS[3])}。`
+        }<br>
+        「◯◯点以上」は、その和了で ${tName} が上位2名に入る<b>最低点</b>です。直撃(ロン)は相手の点も減るため、ツモや別の相手より軽い条件になりがちです。${BONUS_BY_UKI?'連盟は和了で浮き人数が変わると全員の順位点も動くので、条件が読みづらくなります。':''}<br>
+        素点が同点なら順位点は<b>按分</b>（同順位で分け合う）。合計ポイントが同点なら<b>最終半荘前ポイントが上の人</b>が勝ち抜けます。
       </div>
     </details>
   `;
