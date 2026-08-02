@@ -158,6 +158,11 @@
       </label>
     </div>
     <div class="spacer"></div>
+    <div class="ctl">
+      <label>プリント問題数</label>
+      <input id="numProblems" type="number" value="6" min="1" max="30" step="1" style="width:70px">
+    </div>
+    <button class="btn-ghost" id="wordBtn">📄 Word保存</button>
     <button class="btn-ghost" id="revealAll">答えを全部表示</button>
     <button class="btn-main" id="newBtn">新しい問題 ↻</button>
   </div>
@@ -645,7 +650,83 @@ function newProblem(){
   render();
 }
 
+/* ===== Word(.doc) 問題集の出力（解答なし・複数問） ===== */
+const DIFF_LABEL={easy:'やさしい',normal:'ふつう',hard:'むずかしい'};
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function preStr(v){const s=Math.abs(v).toFixed(1);return v<0?'▲'+s:'+'+s;}
+
+// Word互換：罫線はborder属性＋インラインstyleで確実に描画、段落は<p>で余白を明示
+const W_CELL='border:1px solid #333333;padding:4px 3px;text-align:center;font-size:10.5pt;';
+const W_HDR ='border:1px solid #333333;padding:4px 3px;text-align:center;font-size:10.5pt;background:#eef4ef;font-weight:bold;';
+const W_TGT ='background:#fff3c4;';
+const W_SM  ='font-size:8.5pt;color:#555555;font-weight:normal;';
+
+function problemWordHtml(sc,index){
+  const hanchan=$('#hanchan').value;
+  const tIdx=sc.targetIndex, tName=sc.players[tIdx].name;
+  const honba=sc.honba||0, kyotaku=sc.kyotaku||0;
+  const extra=(honba>0?`・${honba}本場`:'')+(kyotaku>0?`・供託${kyotaku}本`:'');
+  let head='',rPre='',rSco='';
+  for(let i=0;i<4;i++){
+    const p=sc.players[i], isT=i===tIdx, isOya=p.seat===sc.dealerSeat;
+    const hs=W_HDR+(isT?W_TGT:''), cs=W_CELL+(isT?W_TGT:'');
+    head+=`<td style="${hs}">${esc(p.name)}${isOya?'（親）':''}${isT?'<br>◆対象◆':''}<br><span style="${W_SM}">${SEAT_LABEL[p.seat]}家</span></td>`;
+    rPre+=`<td style="${cs}">${preStr(p.pre)}</td>`;
+    rSco+=`<td style="${cs}">${sc.scores[i].toLocaleString()}</td>`;
+  }
+  const opp=[0,1,2,3].filter(i=>i!==tIdx);
+  const line='＿＿＿＿＿＿＿＿';
+  let ans='';
+  opp.forEach((j,k)=>{ ans+=`<p style="margin:5pt 0;font-size:11pt;">（${k+1}）${esc(sc.players[j].name)} から：${line}点以上　／　通過不可 □</p>`; });
+  ans+=`<p style="margin:5pt 0;font-size:11pt;">（4）ツモ：${line}点(合計)以上　／　通過不可 □</p>`;
+  const rowh=`border:1px solid #333333;padding:4px 3px;text-align:center;font-size:10pt;background:#f6f9f7;font-weight:bold;white-space:nowrap;`;
+  const pbrk = (index>0 && index%2===0) ? `<p style="page-break-before:always;margin:0;font-size:1pt;line-height:1pt;">&nbsp;</p>` : '';
+  return `${pbrk}<p style="font-size:12.5pt;font-weight:bold;margin:0 0 4pt;">■ 第${index+1}問　<span style="${W_SM}">（${RULE.name}／${DIFF_LABEL[$('#difficulty').value]}／${hanchan}半荘制${extra}）</span></p>
+<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%;border:1px solid #333333;margin:0 0 6pt;">
+<tr><td style="${rowh}">&nbsp;</td>${head}</tr>
+<tr><td style="${rowh}">最終半荘前ポイント</td>${rPre}</tr>
+<tr><td style="${rowh}">現在の点数</td>${rSco}</tr>
+</table>
+<p style="margin:3pt 0;font-size:11pt;">Q. <b>${esc(tName)}</b> が2着抜け（上位2名通過）するための和了条件は？${extra}</p>
+<p style="margin:0 0 4pt;${W_SM}">まず現在のトータル順位を計算し、各条件の「最低何点で通過か」を記入。</p>
+${ans}`;
+}
+
+function exportWord(){
+  applyRule();
+  KIRIAGE=$('#kiriage').checked;
+  const diff=$('#difficulty').value;
+  const honba=+$('#honba').value||0, kyotaku=+$('#kyotaku').value||0;
+  const n=Math.min(30,Math.max(1,parseInt($('#numProblems').value,10)||6));
+  const probs=[];
+  for(let i=0;i<n;i++){ const sc=generate(diff); sc.honba=honba; sc.kyotaku=kyotaku; sc.kiriage=KIRIAGE; probs.push(sc); }
+  const d=new Date();
+  const dateStr=`${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  const body=probs.map((sc,i)=>problemWordHtml(sc,i)).join('');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>麻雀トーナメント条件計算 問題集</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+<style>
+@page{size:A4;margin:1.8cm;}
+body{font-family:'Yu Gothic','Hiragino Kaku Gothic ProN',Meiryo,sans-serif;font-size:11pt;color:#000000;}
+p{margin:0;}
+table,td{mso-border-alt:solid #333333 .5pt;}
+</style></head>
+<body>
+<p style="font-size:15pt;font-weight:bold;margin:0 0 2pt;">麻雀トーナメント条件計算 問題集</p>
+<p style="${W_SM}margin:0 0 12pt;">${RULE.name}ルール（${esc(RULE.desc)}）／難易度：${DIFF_LABEL[diff]}／全${n}問／作成日 ${dateStr}　※2着抜け（上位2名通過）</p>
+${body}
+</body></html>`;
+  const blob=new Blob(['﻿'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`麻雀条件問題_${RULE.name}_${n}問.doc`;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},200);
+}
+
 $('#newBtn').onclick=newProblem;
+$('#wordBtn').onclick=exportWord;
 $('#revealAll').onclick=function(){
   revealed=!revealed;
   this.textContent=revealed?'答えを隠す':'答えを全部表示';
