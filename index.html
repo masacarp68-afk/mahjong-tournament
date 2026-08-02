@@ -486,7 +486,7 @@ function render(){
     const p=sc.players[i];
     const isT=i===tIdx, isOya=p.seat===sc.dealerSeat;
     const cls=isT?'tgt':'';
-    thName+=`<th class="${cls} name">${p.name}${isOya?'<span class="oya">親</span>':''}${isT?'<span class="tgtbadge">対象</span>':''}<br><span style="font-size:11px;color:#5b6b62;font-weight:400">${SEAT_LABEL[p.seat]}家</span></th>`;
+    thName+=`<th class="${cls} name">${p.name}${isOya?'<span class="oya">親</span>':''}${isT?'<span class="tgtbadge">対象</span>':''}</th>`;
     rPre+=`<td class="${cls}">${fmtPre(p.pre)}</td>`;
     rSco+=`<td class="${cls}">${sc.scores[i].toLocaleString()}</td>`;
   }
@@ -670,7 +670,7 @@ function problemWordHtml(sc,index){
   for(let i=0;i<4;i++){
     const p=sc.players[i], isT=i===tIdx, isOya=p.seat===sc.dealerSeat;
     const hs=W_HDR+(isT?W_TGT:''), cs=W_CELL+(isT?W_TGT:'');
-    head+=`<td style="${hs}">${esc(p.name)}${isOya?'（親）':''}${isT?'<br>◆対象◆':''}<br><span style="${W_SM}">${SEAT_LABEL[p.seat]}家</span></td>`;
+    head+=`<td style="${hs}">${esc(p.name)}${isOya?'（親）':''}${isT?'<br>◆対象◆':''}</td>`;
     rPre+=`<td style="${cs}">${preStr(p.pre)}</td>`;
     rSco+=`<td style="${cs}">${sc.scores[i].toLocaleString()}</td>`;
   }
